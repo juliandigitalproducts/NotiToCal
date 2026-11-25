@@ -1,0 +1,12 @@
+# gitleaks-Einstellungen für NotiToCal (gilt für die GitHub-Veröffentlichung, .forgejo/github-publish/publish.sh).
+# Standardregeln bleiben aktiv; ausgenommen sind nur geprüfte Fehlalarme (UI-Beschriftungen, keine Geheimnisse).
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "UI-Beschriftung 'Telegram-2FA-Passwort (optional)' – Text, kein Passwort"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)app/src/main/res/values[^/]*/strings\.xml$''', '''(^|/)tools/i18n/[a-z_]+\.py$''']
+regexTarget = "line"
+regexes = ['''telegram_2fa_password["']?\s*[:>]\s*"?[^"<]*(Passwort|password|Password|contraseña|mot de passe|wachtwoord|hasło)[^"<]*["<]''']

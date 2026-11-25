@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- C9: Cleartext stays allowed at platform level because local servers (Ollama, LM Studio, a NAS) are reached by IP,
+     which network-security-config cannot express as a range. Http.kt only sends plain http:// to LAN addresses
+     (private IPv4/IPv6 ranges, localhost, .local/.lan/.home.arpa names, Tailscale); everything else must use HTTPS.
+     User-installed CAs are trusted only in debug builds, so a CA pushed onto the phone cannot read API keys. -->
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+  <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+  <debug-overrides>
+    <trust-anchors>
+      <certificates src="user" />
+    </trust-anchors>
+  </debug-overrides>
+</network-security-config>

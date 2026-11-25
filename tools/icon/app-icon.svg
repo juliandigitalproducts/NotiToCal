@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<title>Notification to calendar and task</title>
+<defs>
+ <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#29D8CD"/><stop offset="1" stop-color="#08A9AD"/></linearGradient>
+ <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9675F6"/><stop offset="1" stop-color="#7044D8"/></linearGradient>
+</defs>
+<rect width="1024" height="1024" rx="224" fill="url(#teal)"/>
+<!-- Subtle dimensional lift; all shadows stay inside the rounded tile. -->
+<rect x="232" y="322" width="504" height="470" rx="76" fill="#006C80" opacity=".12"/>
+<rect x="232" y="304" width="504" height="470" rx="76" fill="#FFF"/>
+<path d="M232 446H736" fill="none" stroke="#12B9B9" stroke-width="24"/>
+<path d="M360 274V340M574 274V340" fill="none" stroke="#FFF" stroke-width="44" stroke-linecap="round"/>
+<path d="M363 590L443 670L599 514" fill="none" stroke="#0BB4B5" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+<!-- Notification bubble becomes a sparkle: automation, not unread count. -->
+<path d="M641 208H786Q844 208 844 266V366Q844 424 786 424H718L656 474V424H641Q583 424 583 366V266Q583 208 641 208Z" fill="#4D329C" opacity=".13" transform="translate(0 14)"/>
+<path d="M641 208H786Q844 208 844 266V366Q844 424 786 424H718L656 474V424H641Q583 424 583 366V266Q583 208 641 208Z" fill="url(#violet)"/>
+<path d="M713 250C722 290 738 306 778 315C738 324 722 340 713 380C704 340 688 324 648 315C688 306 704 290 713 250Z" fill="#FFF"/>
+<path d="M790 251V279M776 265H804" fill="none" stroke="#FFF" stroke-width="10" stroke-linecap="round" opacity=".85"/>
+</svg>

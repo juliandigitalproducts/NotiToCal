@@ -1,0 +1,6 @@
+{
+  "hash": "9962f44671a86e167c028415c7e21548",
+  "name": "ML Kit Terms of Service",
+  "url": "https://developers.google.com/ml-kit/terms",
+  "content": "Proprietary. This component is not open source.\n\nGoogle ML Kit is provided by Google under the ML Kit Terms of Service and the Google APIs Terms of Service:\nhttps://developers.google.com/ml-kit/terms\nhttps://developers.google.com/terms\n\nML Kit processes the images on the device. According to Google, ML Kit may send usage and performance metrics (no image content) to Google (details in the privacy policy).\n\nThe licenses of the open-source components bundled inside ML Kit are listed under \"Google ML Kit: bundled components\"."
+}

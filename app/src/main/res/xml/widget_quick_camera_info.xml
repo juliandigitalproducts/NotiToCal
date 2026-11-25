@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:description="@string/widget_quick_camera_name"
+  android:initialKeyguardLayout="@layout/widget_quick_camera"
+  android:initialLayout="@layout/widget_quick_camera"
+  android:minWidth="70dp"
+  android:minHeight="70dp"
+  android:previewImage="@drawable/widget_preview_quick_camera"
+  android:previewLayout="@layout/widget_quick_camera"
+  android:resizeMode="none"
+  android:updatePeriodMillis="0"
+  android:configure="de.juliandigitalproducts.notitocal.widget.WidgetConfigActivity"
+  android:widgetFeatures="reconfigurable"
+  android:widgetCategory="home_screen" />

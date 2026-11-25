@@ -1,0 +1,8 @@
+# Never serve configuration, database files or the schema.
+<FilesMatch "^(config\.php|config\.sample\.php|schema\.sql|.*\.sqlite)$">
+  Require all denied
+</FilesMatch>
+# Some hosts strip the Authorization header; pass it on to PHP.
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

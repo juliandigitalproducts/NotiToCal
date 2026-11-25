@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="background">#FFFBFBFF</color>
+  <!-- Teal of the app icon (tools/icon/app-icon.svg); behind the white calendar on the splash screen. -->
+  <color name="icon_background">#FF14BFBE</color>
+  <!-- Home screen widgets ("system" theme; the night variant is in values-night). -->
+  <color name="widget_surface">#FFF4F7F9</color>
+  <color name="widget_text">#FF1B1F24</color>
+  <color name="widget_text_secondary">#991B1F24</color>
+  <color name="widget_accent">#FF00796B</color>
+  <color name="widget_badge">#FF2E7D32</color>
+</resources>

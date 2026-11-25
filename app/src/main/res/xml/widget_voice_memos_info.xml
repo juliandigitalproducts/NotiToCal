@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:description="@string/widget_voice_memos_name"
+  android:initialKeyguardLayout="@layout/widget_voice_memos"
+  android:initialLayout="@layout/widget_voice_memos"
+  android:minWidth="250dp"
+  android:minHeight="140dp"
+  android:previewImage="@drawable/widget_preview_voice_memos"
+  android:previewLayout="@layout/widget_voice_memos"
+  android:resizeMode="horizontal|vertical"
+  android:updatePeriodMillis="1800000"
+  android:configure="de.juliandigitalproducts.notitocal.widget.WidgetConfigActivity"
+  android:widgetFeatures="reconfigurable"
+  android:widgetCategory="home_screen" />

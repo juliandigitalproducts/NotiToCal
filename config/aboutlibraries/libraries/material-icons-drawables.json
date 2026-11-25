@@ -1,0 +1,9 @@
+{
+  "uniqueId": "com.google.material-design-icons:drawables",
+  "artifactVersion": "",
+  "name": "Material Design Icons (vector paths in ic_check, ic_event, ic_task, ic_widget_refresh)",
+  "description": "Icon path data copied from Google's Material Design Icons into the app's own vector drawables.",
+  "website": "https://github.com/google/material-design-icons",
+  "developers": [{ "name": "Google" }],
+  "licenses": ["Apache-2.0"]
+}
