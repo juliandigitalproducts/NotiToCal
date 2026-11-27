@@ -38,6 +38,8 @@ data class ParsedWhen(
   val spans: List<IntRange> = emptyList(),
   /** Marked true when only a month was provided and the 1st was used as a provisional day fallback. */
   val isProvisionalDay: Boolean = false,
+  /** A written duration ("Dauer 90 Minuten", "for 30 min", "(2 Std.)"); used for the end when no end time is given. */
+  val durationMinutes: Int? = null,
 ) {
   val hasAnything: Boolean get() = date != null || endDate != null || time != null
 }
@@ -57,7 +59,40 @@ object DateParser {
     put(DayOfWeek.FRIDAY, "freitag", "friday", "fri", "vendredi", "viernes", "venerdì", "venerdi", "sexta-feira", "sexta", "piątek", "piatek")
     put(DayOfWeek.SATURDAY, "samstag", "sonnabend", "saturday", "sat", "samedi", "sábado", "sabado", "sabato", "sobota", "sobotę", "sobote")
     put(DayOfWeek.SUNDAY, "sonntag", "sunday", "sun", "dimanche", "domingo", "domenica", "niedziela", "niedzielę", "niedziele")
+    // Recurring ("immer montags", "every mondays") → the next such day; frequent typos in chats ("Mitwoch", "Donerstag").
+    put(DayOfWeek.MONDAY, "montags", "mondays", "montg")
+    put(DayOfWeek.TUESDAY, "dienstags", "tuesdays", "dienstg", "dientag")
+    put(DayOfWeek.WEDNESDAY, "mittwochs", "wednesdays", "mitwoch", "mittwoh", "mittwch", "mitwochs", "wensday", "wednsday")
+    put(DayOfWeek.THURSDAY, "donnerstags", "thursdays", "donerstag", "donnerstg", "thurday")
+    put(DayOfWeek.FRIDAY, "freitags", "fridays", "freitg", "fritag")
+    put(DayOfWeek.SATURDAY, "samstags", "saturdays", "samstg", "samtag")
+    put(DayOfWeek.SUNDAY, "sonntags", "sundays", "sonntg", "sontag")
   }
+
+  /**
+   * German two-letter weekdays ("Mo 14 Uhr", "Fr. 18:00", "Do 3.12."), case-sensitive and only right before a time or
+   * date, so "so", "do" or "Fr. Müller" never count.
+   */
+  private val WEEKDAY_ABBR_DE = rx("""(?<![\p{L}])(Mo|Di|Mi|Do|Fr|Sa|So)(\.?)(?=,?\s+(?:den\s+)?(\d{1,2}\.\d{1,2}\.|\d{1,2}(?:[:.]\d{2}|\s*[Uu]hr\b)))""", ignoreCase = false)
+  private val ABBR_DAYS = mapOf(
+    "Mo" to DayOfWeek.MONDAY, "Di" to DayOfWeek.TUESDAY, "Mi" to DayOfWeek.WEDNESDAY, "Do" to DayOfWeek.THURSDAY,
+    "Fr" to DayOfWeek.FRIDAY, "Sa" to DayOfWeek.SATURDAY, "So" to DayOfWeek.SUNDAY,
+  )
+
+  /** Fixed-date holidays people name instead of the date ("Silvester feiern wir …", "Christmas Eve dinner"). */
+  private val HOLIDAYS: List<Pair<Regex, Pair<Int, Int>>> = listOf(
+    rx("""\b(?:silvester(?:abend|party|feier)?|new\s+year'?s\s+eve|réveillon|nochevieja)\b""") to (12 to 31),
+    rx("""\b(?:heilig(?:en)?\s*abend|christmas\s+eve)\b""") to (12 to 24),
+    rx("""\b(?:(?:1\.|erste[rnm]?)\s*weihnachts(?:feier)?tag|christmas\s+day)\b""") to (12 to 25),
+    rx("""\b(?:(?:2\.|zweite[rnm]?)\s*weihnachts(?:feier)?tag|boxing\s+day)\b""") to (12 to 26),
+    rx("""\b(?:neujahrstag|new\s+year'?s\s+day)\b""") to (1 to 1),
+  )
+
+  /**
+   * Rescheduling ("statt Dienstag jetzt Mittwoch", "vom Freitag auf Samstag", "moved from Monday to Tuesday"): the old
+   * day is blanked out so the new one is read. Only with a rescheduling word in the message.
+   */
+  private val RESCHEDULE = rx("""\b(?:verschieb\w*|verschoben|verlegt|verlegen|umgelegt|statt|anstatt|stattdessen|moved?|rescheduled?|postponed?|instead)\b""")
 
   private val MONTHS: Map<String, Int> = buildMap {
     fun put(m: Int, vararg names: String) = names.forEach { put(it, m) }
@@ -97,7 +132,9 @@ object DateParser {
   private val MONTH_DAY = rx("""\b($monthAlt)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:\s*,?\s*(\d{4}))?""")
   // Month only without day (e.g. "im Januar", "in January", "en janvier", "für den März", "im Januar 2027")
   private val MONTH_ONLY = rx("""\b(?:im|in|en|nel|a|w|we|em|no|für\s+(?:den)?|fuer\s+(?:den)?|den|ab|zum|ab\s+dem)\s+($monthAlt)\b(?:\s*,?\s*(\d{4}))?""")
-  private val WEEKDAY = rx("""\b(?:(next|this|coming|nächsten|nächste|naechsten|kommenden|kommende|diesen|prochain|ce|el próximo|el proximo|este|prossimo|questo|próximo|proximo|próxima|proxima|esta|w|we|w przyszły|w przyszłą|przyszły|przyszłą)\s+)?($weekdayAlt)\b(?:\s+(prochain|que viene|prossimo|próximo))?""")
+  private val WEEKDAY = rx("""\b(?:(next|this|coming|nächsten|nächste|naechsten|kommenden|kommende|diesen|letzten|letzter|vergangenen|vorigen|last|prochain|ce|el próximo|el proximo|este|prossimo|questo|próximo|proximo|próxima|proxima|esta|w|we|w przyszły|w przyszłą|przyszły|przyszłą)\s+)?($weekdayAlt)\b(?:\s+(prochain|que viene|prossimo|próximo))?""")
+  private val OLD_DATE = rx("""\b(?:(?:statt|anstatt|anstelle\s+von|instead\s+of)\s+(?:dem\s+|am\s+|the\s+|on\s+)?(?:$weekdayAlt|\d{1,2}\.\d{1,2}\.?(?:\d{2,4})?|heute|morgen|today|tomorrow)|(?:vom|von|from)\s+(?:dem\s+|the\s+)?(?:$weekdayAlt|\d{1,2}\.\d{1,2}\.?(?:\d{2,4})?|heute|morgen|today|tomorrow)(?=\s+(?:auf|to|nach)\s))\b""")
+  private val PAST_WEEKDAY_PREFIX = setOf("letzten", "letzter", "vergangenen", "vorigen", "last")
   private val IN_N = rx("""\b(?:in|dans|en|tra|fra|em|daqui a|za)\s+(\d{1,2}|${alt(NUMBER_WORDS.keys)})\s+(tag|tagen|days?|jours?|días|dias|día|dia|giorni|giorno|dni|dzień|woche|wochen|weeks?|semaines?|semanas?|settimane|settimana|tygodnie|tygodni|tydzień|stunden?|hours?|heures?|horas?|ore|ora|godzin|godziny|godzinę|minuten|minutes?|minutos?|minuti|minut)\b""")
 
   // Relative ordinal day of month without explicit month (e.g. "am 14ten", "am 14.", "am 14te", "am 14tem", "am 14")
@@ -107,10 +144,11 @@ object DateParser {
   private val TONIGHT = rx("""\b(heute abend|heute nacht|tonight|ce soir|esta noche|stasera|hoje à noite|hoje a noite|esta noite|dziś wieczorem|dzisiaj wieczorem|dzis wieczorem)\b""")
   private val TODAY = rx("""\b(heute|today|aujourd['’]hui|hoy|oggi|hoje|dziś|dzis|dzisiaj)\b""")
   private val TOMORROW = rx("""(?<!guten |am |heute |des |zum |jeden |la |por la |de la |esta |cada |una )\b(morgen|tomorrow|tmrw|tmr|demain|mañana|manana|domani|amanhã|amanha|jutro)\b""")
-  private val NEXT_WEEK = rx("""\b(nächste woche|naechste woche|kommende woche|next week|la semaine prochaine|semaine prochaine|la próxima semana|la proxima semana|la semana que viene|la prossima settimana|settimana prossima|próxima semana|proxima semana|w przyszłym tygodniu|przyszły tydzień)\b""")
+  private val NEXT_WEEK = rx("""\b(nächste woche|naechste woche|nächster woche|naechster woche|kommende woche|kommender woche|next week|la semaine prochaine|semaine prochaine|la próxima semana|la proxima semana|la semana que viene|la prossima settimana|settimana prossima|próxima semana|proxima semana|w przyszłym tygodniu|przyszły tydzień)\b""")
   private val WEEKEND = rx("""\b(wochenende|weekend|week-end|fin de semana|fine settimana|weekend|fim de semana)\b""")
 
   private val RANGE_DAY_MONTH = rx("""\b(?:vom\s+|from\s+|du\s+|del\s+)?(\d{1,2})\.?\s*(?:bis(?:\s+zum)?|-|–|—|to|au|a|al|até)\s*(\d{1,2})\.?\s*($monthAlt)\b(?:\s*(\d{2,4}))?""")
+  private val RANGE_MONTH_DAYS = rx("""\b($monthAlt)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–|—|to|until|through|thru)\s*(\d{1,2})(?:st|nd|rd|th)?\b(?![:.]\d)(?:\s*,?\s*(\d{4}))?""")
   private val RANGE_DOT_DATES = rx("""\b(?:vom\s+|from\s+)?(\d{1,2})\.(\d{1,2})\.?(?:\s*(\d{2,4}))?\s*(?:bis(?:\s+zum)?|-|–|—|to)\s*(\d{1,2})\.(\d{1,2})\.?(?:\s*(\d{2,4}))?\b""")
   private val RANGE_SHORT_DOT = rx("""\b(?:vom\s+|from\s+)?(\d{1,2})\.?\s*(?:bis(?:\s+zum)?|-|–|—|to)\s*(\d{1,2})\.(\d{1,2})\.?(?:\s*(\d{2,4}))?\b""")
   private val RANGE_WEEKDAY = rx("""\b(?:von\s+|from\s+)?($weekdayAlt)\s*(?:bis(?:\s+zum)?|-|–|—|to|until|au|a|al|até)\s*($weekdayAlt)\b""")
@@ -123,14 +161,19 @@ object DateParser {
   private val H_CLOCK = rx("""\b(\d{1,2})h(\d{2})?\b""")
   // Hour ranges with one marker: "14-16 Uhr", "14 bis 16 Uhr", "9–11h", "zwischen 14 und 16 Uhr" (both hours belong to
   // the range). "h" only written on: "2-3 h" is a duration. Group 1 or 2 is the start hour, group 3 the end hour.
-  private val HOUR_RANGE = rx("""\b(?:(\d{1,2})\s*(?:-|–|—|bis)|zwischen\s+(\d{1,2})\s+und)\s*(\d{1,2})(?:\s*uhr|h)\b""")
+  private val HOUR_RANGE = rx("""\b(?:(\d{1,2})\s*(?:-|–|—|bis|to)|zwischen\s+(\d{1,2})\s+und)\s*(\d{1,2})(?:\s*uhr\b|h\b|\s*([ap])\.?m\b\.?)""")
   // A day number right after a weekday: "viernes 27", "Freitag, den 27.", "Friday the 27th".
   private val WEEKDAY_DAY_TAIL = rx(""",?\s+(?:den\s+|der\s+|el\s+|le\s+|il\s+|the\s+)?(\d{1,2})(?:\.|st|nd|rd|th|º)?(?![\d:])(?!\s*(?:uhr|h\b|am\b|pm\b|a\.m|p\.m|[:.]\d|leute|personen|people|persons|€|eur|euro|%|min|std|stunden|hours))""")
   // German "um 7:45" is a 24h clock time (the evening would be written "um 19:45"). Matched with transparent bounds
   // right before the clock time, so "Datum 7:45" or "warum  7:45" do not count.
   private val UM_BEFORE = rx("""\bum\s{1,2}$""")
   private val MARKED_HOUR = rx("""\b(\d{1,2})\s*(uhr|a\.?m\.?|p\.?m\.?)(?![a-z])""")
-  private val PREP_HOUR = rx("""\b(?:um|gegen|at|around|à|vers|a las|a la|sobre las|alle|verso le|às|as|pelas|o|około|ok\.)\s+(\d{1,2})(?![\d.:/,]|\s*(?:tag|day|jour|día|dia|giorn|dni|%|€|euro|uhr|h\b|min|std|hour|heure|hora|ora|godz|person|leute|people))""")
+  private val PREP_HOUR = rx("""(?:\b(?:um|gegen|at|around|à|vers|a las|a la|sobre las|alle|verso le|às|as|pelas|o|około|ok\.)\s+|(?<!\S)@\s*)(\d{1,2})(?![\d.:/,]|\s*(?:tag|day|jour|día|dia|giorn|dni|%|€|euro|uhr|h\b|min|std|hour|heure|hora|ora|godz|person|leute|people))""")
+  // "von 9 bis 12:30 Uhr", "9-12:30": a bare start hour right before a clock time it ranges to.
+  private val HOUR_TO_CLOCK = rx("""\b(?:(?:von|from|zwischen|between)\s+)?(\d{1,2})\s*(?:-|–|—|bis|to|till|until)\s*(?=\d{1,2}:\d{2}|\d{1,2}\.\d{2}\s*(?:uhr|h)\b)""")
+  // "morgen ab 3": only used when a date is written and no other time was found ("ab 18 Jahren" has no date).
+  private val AB_HOUR = rx("""\bab\s+(\d{1,2})(?![\d.:/,]|\s*(?:jahr|j\.|tag|woche|monat|%|€|euro|eur|person|leute|teilnehm|gäste|stück|stk|kg|km|grad|°|uhr|h\b|min|std|stunde|pers))""")
+  private val DURATION = rx("""(?:\bdauer(?:t)?\s*(?:ca\.?|etwa|ungefähr|rund|circa)?\s*:?\s*|\bfür\s+(?:ca\.?\s+|etwa\s+|circa\s+)?|\bfor\s+(?:about\s+|around\s+|approx\.?\s+)?|\(\s*(?:ca\.?\s*)?)(\d{1,3}(?:[.,]\d{1,2})?|eine?|einer|an|one|two|three|zwei|drei|anderthalb|eineinhalb)\s*(minuten|min\.?|mins|minutes?|stunden?|std\.?|h|hours?|hrs?)(?![\p{L}])""")
   private val HALF_PAST_DE = rx("""\bhalb\s+(\d{1,2})\b""")
   // Colloquial quarters: "viertel nach 4" = 4:15, "viertel vor 5" = 4:45, "dreiviertel 5" = 4:45, regional "viertel 5" = 4:15.
   private val QUARTER_PAST = rx("""\b(?:viertel\s+nach|quarter\s+past|quarter\s+after)\s+(\d{1,2})\b(?![:.]\d)""")
@@ -218,7 +261,9 @@ object DateParser {
     /** The phone's time zone: a time written with another zone ("17:00 EST") is converted to it. */
     zone: ZoneId = ZoneId.systemDefault(),
   ): ParsedWhen {
-    val text = maskGreetings(raw.replace(' ', ' '))
+    val text = maskGreetings(raw.replace(' ', ' ')).let { t ->
+      if (RESCHEDULE.containsMatchIn(t)) OLD_DATE.replace(t) { m -> " ".repeat(m.value.length) } else t
+    }
     val spans = mutableListOf<IntRange>()
     var date: LocalDate? = null
     var endDate: LocalDate? = null
@@ -237,18 +282,17 @@ object DateParser {
     }
 
     fun fixYear(day: Int, month: Int, year: String?): LocalDate? {
-      val y = when {
-        year.isNullOrEmpty() -> {
-          // Jahreswechsel-Logik: Liegt ein genannter Monat vor dem aktuellen Monat,
-          // wähle automatisch das Folgejahr (z. B. November 2026 -> Januar 2027)
-          if (month < today.monthValue) today.year + 1 else today.year
-        }
-        year.length == 2 -> 2000 + year.toInt()
-        else -> year.toInt()
+      if (year.isNullOrEmpty()) {
+        // Without a year the nearest reading wins: a date of the last weeks stays in the past ("Fotos vom 14.11.",
+        // "danke für den 21.11." – the event is then ignored as past), anything older means the coming year
+        // (in November "am 3.1." is January next year, in January "am 28.12." the December just gone).
+        val earliest = today.minusDays(RECENT_PAST_DAYS)
+        return (-1..1).asSequence()
+          .mapNotNull { runSafely { LocalDate.of(today.year + it, month, day) }.getOrNull() }
+          .firstOrNull { !it.isBefore(earliest) }
       }
-      val d = runSafely { LocalDate.of(y, month, day) }.getOrNull() ?: return null
-      // A date without a year that already lies clearly in the past means next year.
-      return if (year.isNullOrEmpty() && d.isBefore(today.minusDays(1))) d.plusYears(1) else d
+      val y = if (year.length == 2) 2000 + year.toInt() else year.toInt()
+      return runSafely { LocalDate.of(y, month, day) }.getOrNull()
     }
 
     // 0) Date ranges (multi-day appointments)
@@ -261,6 +305,19 @@ object DateParser {
         setDate(d1, m.range)
         endDate = d2
         spans += m.range
+      }
+    }
+    if (endDate == null) {
+      RANGE_MONTH_DAYS.find(text)?.let { m ->
+        val mo = MONTHS[m.groupValues[1].lowercase()] ?: return@let
+        val y = m.groupValues[4].ifEmpty { null }
+        val d1 = fixYear(m.groupValues[2].toInt(), mo, y)
+        val d2 = fixYear(m.groupValues[3].toInt(), mo, y)
+        if (d1 != null && d2 != null && d2.isAfter(d1)) {
+          setDate(d1, m.range)
+          endDate = d2
+          spans += m.range
+        }
       }
     }
     if (endDate == null) {
@@ -331,6 +388,10 @@ object DateParser {
       if (a > 12 && b > 12) return@let
       if (a in 1..31 && b in 1..12) setDate(fixYear(a, b, m.groupValues[3]), m.range)
     }
+    for ((r, md) in HOLIDAYS) {
+      // The holiday is the event's name ("Silvester feiern wir …"): it stays in the title, so its span is not kept.
+      r.find(text)?.let { m -> setDate(fixYear(md.second, md.first, null), m.range); spans.remove(m.range) }
+    }
 
     // 2) Relative dates.
     DAY_AFTER.find(text)?.let { setDate(today.plusDays(2), it.range) }
@@ -373,15 +434,22 @@ object DateParser {
       }
     }
     var weekdayHitDate: LocalDate? = null
+    // A plain weekday that falls on today ("Thursday 2pm" said on Thursday afternoon): moved a week on below when the
+    // time has passed already.
+    var weekdayMayBeNextWeek = false
     WEEKDAY.findAll(text).firstOrNull { m ->
       // "mar"/"sat"/"sun" etc. are only accepted as weekday when written as a standalone token.
       val w = m.groupValues[2].lowercase()
       w.length > 3 || m.groupValues[1].isNotEmpty()
     }?.let { m ->
       val dow = WEEKDAYS[m.groupValues[2].lowercase()] ?: return@let
-      val next = m.groupValues[1].isNotEmpty() && m.groupValues[1].lowercase() !in setOf("this", "diesen", "ce", "este", "questo", "esta", "w", "we")
+      val prefix = m.groupValues[1].lowercase()
+      val next = prefix.isNotEmpty() && prefix !in setOf("this", "diesen", "ce", "este", "questo", "esta", "w", "we") && prefix !in PAST_WEEKDAY_PREFIX
       var d = today.with(TemporalAdjusters.nextOrSame(dow))
       if (d == today && next) d = d.plusWeeks(1)
+      // "letzten Freitag", "last Monday": the day before today, a look back (ignored as past later on).
+      if (prefix in PAST_WEEKDAY_PREFIX) d = today.with(TemporalAdjusters.previous(dow))
+      if (prefix.isEmpty() && d == today) weekdayMayBeNextWeek = true
       var range = m.range
       // "viernes 27": the weekday names the 27th, taken when that day really is such a weekday this or next month.
       val tail = WEEKDAY_DAY_TAIL.toPattern().matcher(text).region(m.range.last + 1, text.length)
@@ -396,6 +464,18 @@ object DateParser {
       }
       weekdayHitDate = d
       setDate(d, range)
+    }
+    if (weekdayHitDate == null) {
+      WEEKDAY_ABBR_DE.findAll(text).firstOrNull { m ->
+        // "So" is also "so" at the start of a sentence: only "So." or "So 6.12." count.
+        m.groupValues[1] != "So" || m.groupValues[2] == "." || m.groupValues[3].endsWith(".")
+      }?.let { m ->
+        val dow = ABBR_DAYS.getValue(m.groupValues[1])
+        val d = today.with(TemporalAdjusters.nextOrSame(dow))
+        if (d == today) weekdayMayBeNextWeek = true
+        weekdayHitDate = d
+        setDate(d, m.range)
+      }
     }
     IN_N.find(text)?.let { m ->
       val n = m.groupValues[1].toIntOrNull() ?: NUMBER_WORDS[m.groupValues[1].lowercase()] ?: return@let
@@ -435,8 +515,29 @@ object DateParser {
     WEEKEND.find(text)?.let { setDate(today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY)), it.range) }
 
     // 3) Times.
+    // A duration ("Dauer 90 Minuten", "for 30 min", "(2 Std.)", "für 2h") is no clock time.
+    var durationMinutes: Int? = null
+    var durationRange: IntRange? = null
+    DURATION.find(text)?.let { m ->
+      val n = m.groupValues[1].lowercase()
+      val amount = when (n) {
+        "ein", "eine", "einer", "an", "one" -> 1.0
+        "zwei", "two" -> 2.0
+        "drei", "three" -> 3.0
+        "anderthalb", "eineinhalb" -> 1.5
+        else -> n.replace(',', '.').toDoubleOrNull()
+      } ?: return@let
+      val unit = m.groupValues[2].lowercase()
+      val minutes = if (unit.startsWith("min")) amount else amount * 60
+      if (minutes >= 5 && minutes <= 24 * 60) {
+        durationMinutes = minutes.toInt()
+        durationRange = m.range
+        spans += m.range
+      }
+    }
     val hits = mutableListOf<TimeHit>()
     fun addHit(r: IntRange, h: Int, m: Int, marker: String?, explicit24h: Boolean = false) {
+      durationRange?.let { d -> if (d.first <= r.last && r.first <= d.last) return }
       var hour = h
       val mk = marker?.lowercase()?.replace(".", "")
       val pm = mk == "pm"; val am = mk == "am"
@@ -477,16 +578,26 @@ object DateParser {
     }
     DOT_CLOCK.findAll(text).forEach { addHit(it.range, it.groupValues[1].toInt(), it.groupValues[2].toInt(), null, explicit24h = true) }
     H_CLOCK.findAll(text).forEach { addHit(it.range, it.groupValues[1].toInt(), it.groupValues[2].ifEmpty { "0" }.toInt(), null) }
+    HOUR_TO_CLOCK.findAll(text).forEach { m ->
+      val g = m.groups[1]!!
+      if (spans.none { it.first <= g.range.last && g.range.first <= it.last }) addHit(g.range, g.value.toInt(), 0, null)
+    }
     HOUR_RANGE.findAll(text).forEach { m ->
       val start = m.groups[1] ?: m.groups[2]!!
-      addHit(start.range, start.value.toInt(), 0, null)
-      addHit(m.groups[3]!!.range.first..m.range.last, m.groupValues[3].toInt(), 0, null)
+      // "10-11am": the marker belongs to both hours; "11-1pm" starts in the morning.
+      val endMarker = m.groups[4]?.value?.lowercase()?.let { it + "m" }
+      val startMarker = endMarker?.let { if (start.value.toInt() % 12 > m.groupValues[3].toInt() % 12) (if (it == "pm") "am" else "pm") else it }
+      addHit(start.range, start.value.toInt(), 0, startMarker)
+      addHit(m.groups[3]!!.range.first..m.range.last, m.groupValues[3].toInt(), 0, endMarker)
     }
     MARKED_HOUR.findAll(text).forEach { addHit(it.range, it.groupValues[1].toInt(), 0, it.groupValues[2]) }
     PREP_HOUR.findAll(text).forEach { m ->
       val h = m.groupValues[1].toInt()
       // A date like "am 12." is caught by the date patterns; skip numbers that belong to one.
       if (spans.none { it.first <= m.range.last && m.range.first <= it.last }) addHit(m.range, h, 0, null)
+    }
+    if (hits.isEmpty() && date != null) {
+      AB_HOUR.find(text)?.let { m -> if (spans.none { it.first <= m.range.last && m.range.first <= it.last }) addHit(m.range, m.groupValues[1].toInt(), 0, null) }
     }
     if (hits.isEmpty()) NOON.find(text)?.let { addHit(it.range, 12, 0, null) }
     hits.sortBy { it.range.first }
@@ -558,6 +669,12 @@ object DateParser {
       if (tz != null && from != null) spans += (timeEnd + 1 + tz.range.first)..(timeEnd + 1 + tz.range.last)
     }
 
+    // "Thursday 2pm" written on Thursday at 14:30 means next week's Thursday.
+    if (weekdayMayBeNextWeek && date == today && time != null && time.isBefore(now.toLocalTime())) {
+      date = today.plusWeeks(1)
+      endDate = endDate?.plusWeeks(1)
+    }
+
     val dateExplicit = date != null
     if (date == null && time != null && !vague) {
       // Only a clock time: today if it is still ahead, otherwise tomorrow.
@@ -579,6 +696,10 @@ object DateParser {
       deadline = deadline,
       spans = spans.sortedBy { it.first },
       isProvisionalDay = isProvisionalDay,
+      durationMinutes = durationMinutes,
     )
   }
+
+  /** How far back a date without a year may lie and still be read as this year's (past) date. */
+  private const val RECENT_PAST_DAYS = 60L
 }

@@ -1,3 +1,17 @@
+## 1.0.7
+
+### Deutsch
+- Bessere Terminerkennung: Dauer und Zeitspannen („von 9 bis 12:30“, „10-11am“), Verschiebungen („statt Dienstag jetzt Mittwoch“), Wochentage, Feiertage wie Silvester und sauberere Titel und Orte.
+- Datum ohne Jahr in der jüngsten Vergangenheit wird nicht mehr zu einem Termin im nächsten Jahr.
+- Der KI-Prompt kennt den Kalender der nächsten 14 Tage.
+- Neue Sicherheitsprüfung vor der Veröffentlichung (Secret-Scan).
+
+### English
+- Better appointment detection: durations and time ranges ("from 9 to 12:30", "10-11am"), reschedules ("Wednesday instead of Tuesday"), weekdays, holidays such as New Year's Eve, and cleaner titles and places.
+- A date without a year in the recent past no longer becomes an appointment next year.
+- The AI prompt knows the calendar of the next 14 days.
+- New security check before publishing (secret scan).
+
 ## 1.0.0
 
 ### Deutsch

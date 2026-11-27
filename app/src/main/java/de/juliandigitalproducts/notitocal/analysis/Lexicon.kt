@@ -28,7 +28,9 @@ object Lexicon {
       "zoom-call", "google meet", "webex", "rückruf um", "check-in", "abflug", "ankunft", "landung", "boarding", "zugfahrt", "fähre", "mietwagen",
       "übernachtung", "anreise", "abreise", "lieferfenster", "zustellung am", "abholung", "tischreservierung", "reservierungsbestätigung",
       "buchungsbestätigung", "terminbestätigung", "terminerinnerung", "terminänderung", "neuer termin", "verschoben auf", "verlegt auf", "eintrittskarte", "einlass",
-      "ganztägig", "ganztags", "freihalten", "sprint review", "retrospektive")
+      "ganztägig", "ganztags", "freihalten", "sprint review", "retrospektive",
+      "versammlung", "mitgliederversammlung", "hausversammlung", "eigentümerversammlung", "urlaub", "betriebsferien", "messe",
+      "techniker", "yoga", "pilates", "kommst rum", "kommst du rum", "kommst vorbei", "komm vorbei", "vorbeikommen")
     // en
     put(0.45, "doctor's appointment", "check-up", "checkup", "consultation", "client meeting", "booking confirmation", "your appointment", "appointment reminder")
     put(0.35, "vaccination", "therapy", "therapist", "physio", "haircut", "hairdresser", "barber", "mechanic", "service appointment", "inspection", "plumber",
@@ -38,7 +40,8 @@ object Lexicon {
       "baby shower", "bridal shower", "court hearing", "notary", "lawyer", "stand-up", "standup", "kickoff", "kick-off", "one-on-one", "1:1",
       "teams meeting", "google meet", "webex", "departure", "arrival", "boarding", "ferry", "rental car", "check-in", "delivery window", "pickup",
       "pick-up", "table for", "rescheduled", "postponed", "moved to", "tickets for", "doors open", "all-day", "all day", "save the date",
-      "sprint review", "retrospective", "demo day")
+      "sprint review", "retrospective", "demo day", "offsite", "off-site", "retreat", "sync", "team sync", "vacation",
+      "yoga", "pilates", "class")
     // fr
     put(0.35, "consultation", "kiné", "kinésithérapeute", "vaccin", "coiffeur", "contrôle technique", "visite", "réunion de parents", "répétition",
       "spectacle", "exposition", "festival", "séminaire", "atelier", "conférence", "examen", "match", "tournoi", "randonnée", "pique-nique",

@@ -83,7 +83,7 @@ object Hybrid {
         w.endDate != null -> w.endTime?.let { w.endDate.atTime(it).format(ISO) } ?: w.endDate.toString()
         parsedStart != null && w.date != null && w.time != null -> {
           val s = w.date.atTime(w.time)
-          (w.endTime?.let { w.date.atTime(it).let { e -> if (e.isAfter(s)) e else e.plusDays(1) } } ?: s.plusMinutes(defaultMinutes.toLong())).format(ISO)
+          (w.endTime?.let { w.date.atTime(it).let { e -> if (e.isAfter(s)) e else e.plusDays(1) } } ?: s.plusMinutes((w.durationMinutes ?: defaultMinutes).toLong())).format(ISO)
         }
         else -> llm.end
       }

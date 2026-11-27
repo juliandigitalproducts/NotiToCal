@@ -46,6 +46,34 @@ object Prompt {
     "- A place, meeting point or address alone is not an appointment: without a date answer NOTE or NONE."
   }
 
+  /**
+   * Date rules for models, matching what the offline rules do (DateParser), so both engines agree on the same message.
+   * Measured with the fixtures in src/test/resources/termin (TerminErkennungTest): the old prompt had no answer for
+   * rescheduling, durations, multi-day ranges, weekday = today, look-backs, several or recurring appointments.
+   */
+  internal val DATE_RULES = """
+- Weekdays: use the calendar above, never compute them yourself. A plain weekday ("Friday", "am Freitag") is its next occurrence; if it is today and the time has already passed, it means the same weekday next week. "next/nächsten <weekday>" said on that weekday means one week later.
+- Rescheduling ("moved to", "verschoben auf", "statt Dienstag jetzt Mittwoch", "vom Freitag auf Samstag"): use ONLY the new date and time, never the old one.
+- Cancellations ("abgesagt", "fällt aus", "cancelled"): kind NONE, unless a new date is given in the same message.
+- Looking back ("letzten Freitag", "last Monday", "gestern", "war schön", a date of the past weeks without a year): kind NONE.
+- A date without a year is the nearest one: a day of the past weeks is in the past (kind NONE), otherwise the coming occurrence.
+- Duration ("Dauer 90 Minuten", "for 30 min", "(2 Std.)"): end = start + duration. A written end time ("14–16 Uhr", "von 9 bis 12:30", "10-11am") is the end. Otherwise end null.
+- Several days ("vom 21.12. bis 3.1.", "Dec 10-12"): start and end as dates (YYYY-MM-DD, end = last day) and all_day true.
+- Several appointments in one message: report the first upcoming one and list the others in the description.
+- Recurring ("jeden Montag", "immer montags", "every Wednesday"): the first upcoming occurrence; mention the rule in the description.
+- Fixed holidays: Heiligabend/Christmas Eve = 12-24, Silvester/New Year's Eve = 12-31, Neujahr = 01-01.
+- German short weekdays before a time or date: Mo, Di, Mi, Do, Fr, Sa, So ("Fr. 18:00" = Friday 18:00). A bare hour 1–7 in a chat ("um 5", "at 6") is in the afternoon or evening unless "früh"/"morgens"/"am" is written.
+""".trim()
+
+  /** The next 14 days with their weekdays, so models do not miscount ("Friday" → Thursday). */
+  internal fun calendarLine(now: LocalDateTime): String {
+    val today = now.toLocalDate()
+    return "Calendar: " + (0L until 14L).joinToString(", ") { i ->
+      val d = today.plusDays(i)
+      d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + d + when (i) { 0L -> " (today)"; 1L -> " (tomorrow)"; else -> "" }
+    }
+  }
+
   /** The user's language (app language, else device language) in English, e.g. "German", for instructions to models. */
   fun userLanguage(context: Context): String {
     val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
@@ -61,8 +89,9 @@ object Prompt {
     return """
 You are NotiToCal, an assistant that turns short messages (chat notifications, e-mails, screenshots, voice memo transcripts) into calendar events or tasks.
 Date and time the message was received (resolve relative dates against it): ${now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"))} (${now.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH)}), time zone ${ZoneId.systemDefault().id}.
+${calendarLine(now)}
 Answer ONLY with one JSON object, no markdown, using exactly these keys:
-{"kind":"EVENT|TASK|NOTE|NONE","title":"","description":"","start":"YYYY-MM-DDTHH:MM or YYYY-MM-DD or null","end":"YYYY-MM-DDTHH:MM or null","all_day":false,"due":"YYYY-MM-DD or YYYY-MM-DDTHH:MM or null","location":null,"priority":0,"confidence":0.0,"reason":"","is_provisional_day":false,"action_type":"CREATE_NEW|UPDATE_EXISTING","target_event_id":null${categoryKey(s)}}
+{"kind":"EVENT|TASK|NOTE|NONE","title":"","description":"","start":"YYYY-MM-DDTHH:MM or YYYY-MM-DD or null","end":"YYYY-MM-DDTHH:MM or YYYY-MM-DD or null","all_day":false,"due":"YYYY-MM-DD or YYYY-MM-DDTHH:MM or null","location":null,"priority":0,"confidence":0.0,"reason":"","is_provisional_day":false,"action_type":"CREATE_NEW|UPDATE_EXISTING","target_event_id":null${categoryKey(s)}}
 Rules:
 - Choose exactly ONE kind per message, never both an event and a task for the same thing.
 - EVENT: a meeting, appointment, call, reservation, trip or invitation at a specific day (and ideally time) that the reader will attend. Use "start"/"end", leave "due" null.
@@ -72,6 +101,7 @@ ${addressRule(s)}
 - NOTE: useful information to keep (address, code for a door, idea) that is neither an event nor a task.
 - NONE: small talk, greetings, ads, newsletters, one-time passwords, delivery status, past or cancelled events.
 - Resolve relative dates ("tomorrow", "next Friday", "in 3 days") against the current date. Never invent a time; if the day is known but not the time, set start to the date only and all_day to true.
+${DATE_RULES}
 - title: short and specific event/task summary ONLY (max 60 characters, e.g. "Mittagessen"), written in $language (the user's language, even if the message is in another language), without the date. NEVER put system status messages, confidence scores, or JSON into "title".
 - description: one or two short sentences in $language with the useful details (who, what, where); names, addresses and codes stay as written. Never put raw JSON or system debug text into "description".
 - location: ONLY a physical place, address, venue or meeting link. NEVER put the greeted recipient's name (e.g. from "Hallo lieber Julian", "Hi Anna", "Dear Tom") into "location" or as "bei <Recipient>" in the title unless the message explicitly states the meeting takes place at the recipient's home ("bei dir zu Hause", "at your place"). If the message invites the reader to the sender's place ("bei uns", "zu uns", "laden euch ein") without naming a physical address, set "location" to the sender's name (from the sign-off like "Viele Grüße Max Mustermann" or Sender header) or null if unknown.

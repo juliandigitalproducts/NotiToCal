@@ -72,6 +72,33 @@ android {
 
   val isReleaseConfigured = !releaseStorePath.isNullOrBlank() && !releaseStorePassword.isNullOrBlank()
   val previewRequested = project.hasProperty("notitocalPreview")
+
+  // Preview signing (only with -PnotitocalPreview when no release key is configured):
+  // Env NOTITOCAL_PREVIEW_* -> Gradle property notitocalPreview* -> signing/preview.properties (gitignored).
+  // If missing, preview signing is left unconfigured so tests, lint and debug builds still run;
+  // only tasks that actually sign a release artifact fail with a clear error.
+  val previewPropsFile = rootProject.file("signing/preview.properties").takeIf { it.exists() }
+  val previewProps = Properties().apply {
+    if (previewPropsFile != null) {
+      previewPropsFile.inputStream().use { load(it) }
+    }
+  }
+  val previewStoreFile = rootProject.file("signing/preview.keystore")
+  val previewStorePassword = System.getenv("NOTITOCAL_PREVIEW_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
+    ?: (project.findProperty("notitocalPreviewStorePassword") as? String)?.takeIf { it.isNotBlank() }
+    ?: previewProps.getProperty("storePassword")?.takeIf { it.isNotBlank() }
+  val previewKeyPassword = System.getenv("NOTITOCAL_PREVIEW_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+    ?: (project.findProperty("notitocalPreviewKeyPassword") as? String)?.takeIf { it.isNotBlank() }
+    ?: previewProps.getProperty("keyPassword")?.takeIf { it.isNotBlank() }
+    ?: previewStorePassword
+  val isPreviewConfigured = previewStoreFile.exists() &&
+    !previewStorePassword.isNullOrBlank() &&
+    !previewKeyPassword.isNullOrBlank()
+  val previewSigning = mapOf(
+    "storePassword" to previewStorePassword,
+    "keyPassword" to previewKeyPassword,
+  )
+
   if (!isReleaseConfigured && !previewRequested) {
     gradle.taskGraph.whenReady {
       if (allTasks.any { it.project == project && it.name.contains("Release") && (it.name.startsWith("package") || it.name.startsWith("bundle")) }) {
@@ -81,20 +108,38 @@ android {
         )
       }
     }
+  } else if (!isReleaseConfigured && previewRequested && !isPreviewConfigured) {
+    gradle.taskGraph.whenReady {
+      val needsPreviewSigning = allTasks.any {
+        it.project == project && (
+          (it.name.endsWith("Release") && (it.name.startsWith("package") || it.name.startsWith("bundle") || it.name.startsWith("validateSigning"))) ||
+            (it.name.endsWith("ReleaseBundle") && (it.name.startsWith("package") || it.name.startsWith("sign")))
+          )
+      }
+      if (needsPreviewSigning) {
+        throw GradleException(
+          "Preview signing requested (-PnotitocalPreview), but preview keystore credentials are missing: " +
+            "set NOTITOCAL_PREVIEW_STORE_PASSWORD / NOTITOCAL_PREVIEW_KEY_PASSWORD, " +
+            "-PnotitocalPreviewStorePassword / -PnotitocalPreviewKeyPassword, or create signing/preview.properties.",
+        )
+      }
+    }
   }
 
   signingConfigs {
-    create("release") {
-      if (isReleaseConfigured) {
+    if (isReleaseConfigured) {
+      create("release") {
         storeFile = file(releaseStorePath)
         storePassword = releaseStorePassword
         keyAlias = releaseKeyAlias
         keyPassword = releaseKeyPassword
-      } else {
-        storeFile = rootProject.file("signing/preview.keystore")
-        storePassword = "notitocal-preview"
+      }
+    } else if (previewRequested && isPreviewConfigured) {
+      create("release") {
+        storeFile = previewStoreFile
+        storePassword = previewSigning["storePassword"]
         keyAlias = "preview"
-        keyPassword = "notitocal-preview"
+        keyPassword = previewSigning["keyPassword"]
       }
     }
   }
@@ -106,7 +151,9 @@ android {
 
   buildTypes {
     release {
-      signingConfig = signingConfigs.getByName("release")
+      if (isReleaseConfigured || (previewRequested && isPreviewConfigured)) {
+        signingConfig = signingConfigs.getByName("release")
+      }
       buildConfigField("boolean", "PREVIEW_SIGNED", (!isReleaseConfigured).toString())
       isMinifyEnabled = true
       isShrinkResources = true

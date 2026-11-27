@@ -1,0 +1,12 @@
+# .gitleaksignore – geprüfte Altlasten in der Historie (Fingerprint <commit>:<datei>:<regel>:<zeile>).
+# Nur nach Prüfung eintragen; Werte stehen hier nie. Siehe .forgejo/github-publish/LIESMICH bzw. Vorlage "Secret-Prüfung".
+
+# Telegram-Bot-Token-Muster im Unit-Test (erfundener Testwert laut Prüfbericht, Token zusätzlich widerrufen);
+# im aktuellen Baum durch zur Laufzeit gebauten Fake-Wert ersetzt.
+# Altlast in Forgejo-Historie, Wert widerrufen, kein History-Rewrite auf Wunsch von Julian, 27.11.2026
+77f9a779e0b9e9417571967e56f1ba81bad54902:app/src/test/java/de/juliandigitalproducts/notitocal/ReviewFixes1515Test.kt:telegram-bot-token-locker:58
+
+# Passwort des Vorschau-Keystores (signing/preview.keystore, nur für -PnotitocalPreview-Testbuilds, kein Release-Schlüssel).
+# Altlast in Historie; Wert seit 27.11.2026 nicht mehr im Code
+77f9a779e0b9e9417571967e56f1ba81bad54902:app/build.gradle.kts:passwort-zuweisung:79
+77f9a779e0b9e9417571967e56f1ba81bad54902:app/build.gradle.kts:passwort-zuweisung:81

@@ -137,11 +137,13 @@ object RuleEngine {
   private val INVITE_FILLER = rx("""^\s*(?:wir\s+möchten\s+(?:euch|dich|sie)\s+(?:gerne\s+|herzlich\s+)?einladen|wir\s+laden\s+(?:euch|dich|sie)\s+(?:gerne\s+|herzlich\s+)?ein|ich\s+lade\s+(?:euch|dich|sie)\s+(?:gerne\s+|herzlich\s+)?ein|ich\s+möchte\s+(?:euch|dich|sie)\s+(?:gerne\s+|herzlich\s+)?einladen)\b[\s,]*""")
   private val TASK_PREFIX = rx("""^\s*(?:und\s+|and\s+|et\s+|y\s+|e\s+|i\s+)?(?:vergiss nicht|nicht vergessen|denk dran|denk daran|bitte|kannst du( bitte)?|könntest du( bitte)?|don't forget to|dont forget to|don't forget|remember to|please|can you( please)?|could you( please)?|n'oublie pas de|n'oublie pas|peux-tu|pourrais-tu|no olvides|no te olvides de|recuerda|puedes|podrías|non dimenticare di|non dimenticare|ricordati di|puoi|potresti|não esqueças de|não esqueça de|lembra-te de|podes|nie zapomnij|pamiętaj,? żeby|pamiętaj|możesz)\b[\s,:]*""")
   private val DANGLING_PREP = rx("""\b(?:um|gegen|ab|am|bis|zwischen|auf|between|at|on|by|until|from|à|vers|le|dès|a las|a la|el|hasta|alle|il|entro|às|as|no|na|até|o|w|we|do)\s*$""")
-  private val SENTENCE_SPLIT = Regex("""(?<=[.!?\n])\s+""")
+  private val SENTENCE_SPLIT = Regex("""(?<=[.!?])(?<!\b(?:Dr|Prof|med|Fr|Hr|Hrn|Nr|Str|St|ca|Tel|bzw|inkl|evtl|ggf|Mo|Di|Mi|Do|Sa|So)\.)\s+|\s*\n\s*""")
+  /** Confirmation phrasing of booking mails ("hiermit bestätigen wir Ihren Beratungstermin …") is no title. */
+  private val CONFIRM_FILLER = rx("""^\s*(?:hiermit\s+)?(?:bestätigen\s+wir\s+(?:ihnen\s+)?(?:hiermit\s+)?|wir\s+bestätigen\s+(?:ihnen\s+)?(?:hiermit\s+)?|we\s+(?:hereby\s+|are\s+pleased\s+to\s+)?confirm\s+)(?:ihren|ihre|ihr|deinen|deine|dein|den|die|das|your|the)?\s*""")
   /** "Raum A", "Room B", "Raum 3.14": after a room word a single letter or a dotted number belongs to the place. */
   private const val ROOM_SUFFIX =
     """(?<=\b(?:Raum|Räume|Room|Zimmer|Saal|Halle|Hall|Salle|Sala|Stanza|Sali|Pokój|Gebäude|Building|Haus|Etage|Floor|Gate|Gleis|Track))\s+(?:[A-ZÄÖÜ](?![\w'’\-])|\d+(?:\.\d+)+[a-z]?)"""
-  private val LOCATION_PREFIX = rx("""\b(?:am|im|in der|in|bei|beim|an der|an dem|an|at|@|chez|au|à la|en el|en la|en|nel|nella|al|presso|no|na|em|w|we)\s+((?:[A-ZÄÖÜÉÈÀÁÍÓÚ][\w'’\-]+)(?:$ROOM_SUFFIX|\s+(?:[A-ZÄÖÜÉÈÀÁÍÓÚ][\w'’\-]+|\d+[a-z]?)){0,3})""", ignoreCase = false)
+  private val LOCATION_PREFIX = rx("""(?:(?<!\S)@|\b(?:am|im|in der|in|bei|beim|an der|an dem|an|at|chez|au|à la|en el|en la|en|nel|nella|al|presso|no|na|em|w|we))\s+((?:[A-ZÄÖÜÉÈÀÁÍÓÚ][\w'’\-]+)(?:$ROOM_SUFFIX|\s+(?:[A-ZÄÖÜÉÈÀÁÍÓÚ][\w'’\-]+|\d+[a-z]?)){0,3})""", ignoreCase = false)
   private val LABELLED_LOCATION = rx("""(?i)\b(?:Ort|Location|Treffpunkt|Adresse|Address|Wo|Place|Lieu|Ubicación|Posizione|Lokalizacja)\s*[:=]\s*([^\n\r;!]+)""")
   private val CRYPTIC_GLUE_CHARS = "%&$#*~^=_+|\\<>{}@"
   private val CRYPTIC_GLUED_TOKEN = Regex("""[\p{L}\d]+(?:[%&$#*~^=_+|\\<>{}]+[\p{L}\d]+)+""")
@@ -155,7 +157,7 @@ object RuleEngine {
     RegexOption.IGNORE_CASE,
   )
   private val SIGN_OFF_SENDER = Regex(
-    """(?:\b(?:viele\s+grüße|liebe\s+grüße|beste\s+grüße|herzliche\s+grüße|schöne\s+grüße|mit\s+freundlichen\s+grüßen|lg|vg|mfg|dein[e]?|euer|eure|best\s+regards|kind\s+regards|many\s+thanks|yours|cheers|cordialement|saludos|un\s+saludo|cari\s+saluti|pozdrawiam)\b)\s*[,!:]?\s*\n?\s*([A-ZÄÖÜ][\p{L}\-]+(?:\s+[A-ZÄÖÜ][\p{L}\-]+){0,2})""",
+    """(?:\b(?:viele\s+grüße|liebe\s+grüße|beste\s+grüße|herzliche\s+grüße|schöne\s+grüße|mit\s+freundlichen\s+grüßen|lg|vg|mfg|dein[e]?|euer|eure|best\s+regards|kind\s+regards|many\s+thanks|yours|cheers|cordialement|saludos|un\s+saludo|cari\s+saluti|pozdrawiam)\b)\s*[,!:]?\s*\n?\s*(?:(?:ihre?|your)[ \t]+)?([A-ZÄÖÜ][\p{L}\-]+(?:[ \t]+[A-ZÄÖÜ][\p{L}\-]+){0,2})""",
     RegexOption.IGNORE_CASE,
   )
   private val AT_RECIPIENT_EXPLICIT = rx(
@@ -342,10 +344,17 @@ object RuleEngine {
       if (trimmed.isBlank()) return null
       val low = trimmed.lowercase()
       if (low == "julian" || low == "julian daniels") return null
+      // "bei Dr. Weber": the title of a person is no place.
+      if (low.trimEnd('.') in setOf("dr", "prof", "hr", "fr", "herr", "frau", "mr", "mrs", "ms")) return null
       if (!atRecipient && greeted.any { g -> low == g || low.startsWith("$g ") || low.endsWith(" $g") }) return null
       return trimmed
     }
-    LABELLED_LOCATION.find(clean)?.groupValues?.get(1)?.let { validLoc(it)?.let { v -> return v } }
+    LABELLED_LOCATION.find(clean)?.groupValues?.get(1)?.let { labelled ->
+      val parts = labelled.split(',')
+      val keep = parts.takeWhile { !DateParser.parse(it, LocalDateTime.of(2000, 1, 1, 0, 0)).hasAnything }
+      val value = if (keep.isEmpty()) labelled else keep.joinToString(",")
+      validLoc(value)?.let { v -> return v }
+    }
     STREET_ADDRESS.find(clean)?.groupValues?.get(1)?.let { validLoc(it)?.let { v -> return v } }
     LOCATION_PREFIX.findAll(clean).forEach { m ->
       val loc = m.groupValues[1].trim().removeSuffix(".")
@@ -438,6 +447,9 @@ object RuleEngine {
     RegexOption.IGNORE_CASE,
   )
 
+  /** "Lena's birthday", "birthday of Tom", "Tom's bday" (English counterpart of [BIRTHDAY_REGEX]). */
+  private val BIRTHDAY_EN = Regex("""\b(?:([A-Z][a-z]+)'s\s+(?:birthday|bday|b-day)|(?:birthday|bday)\s+of\s+([A-Z][a-z]+))\b""")
+
   private val ISO_MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
   data class Scores(
@@ -476,7 +488,7 @@ object RuleEngine {
   private val COMPOUND_TAILS = setOf(
     "termin", "meeting", "besprechung", "sitzung", "konferenz", "party", "feier", "treffen", "training", "konzert", "essen",
     "abendessen", "mittagessen", "frühstück", "telefonat", "gespräch", "reservierung", "untersuchung", "kurs", "einkaufen",
-    "rechnung", "frist", "aufgabe", "ausflug",
+    "rechnung", "frist", "aufgabe", "ausflug", "prüfung", "klausur", "versammlung", "urlaub",
   )
 
   private fun containsWord(haystack: String, word: String): Boolean {
@@ -540,11 +552,13 @@ object RuleEngine {
     if (w.time != null && !w.vagueTime) eventScore += 0.25
     if (w.time != null && w.vagueTime) eventScore += 0.1
     if (w.endTime != null) eventScore += 0.1
+    // "Urlaub vom 21.12. bis 3.1.", "Dec 10-12": a span of days is an all-day entry.
+    if (w.endDate != null && w.endDate != w.date) eventScore += 0.15
     if (loc != null && w.hasAnything) eventScore += 0.35
     else if (hasEventAndLocation) eventScore += 0.25
     if (w.deadline) { taskScore += 0.2; eventScore -= 0.1 }
     if (QUESTION_INVITE.containsMatchIn(clean) && w.hasAnything) eventScore += 0.1
-    val birthdayMatch = BIRTHDAY_REGEX.find(clean)
+    val birthdayMatch = BIRTHDAY_REGEX.find(clean) ?: BIRTHDAY_EN.find(clean)?.takeIf { w.hasAnything }
     if (birthdayMatch != null && (w.hasAnything || clean.contains("geburtstag", ignoreCase = true))) {
       eventScore = maxOf(eventScore, 0.88)
     }
@@ -614,7 +628,7 @@ object RuleEngine {
         }
         start == null -> null
         w.endTime != null -> date.atTime(w.endTime).let { if (it.isAfter(start)) it else it.plusDays(1) }.format(ISO_MINUTE)
-        else -> start.plusMinutes(defaultDurationMinutes.toLong()).format(ISO_MINUTE)
+        else -> start.plusMinutes((w.durationMinutes ?: defaultDurationMinutes).toLong()).format(ISO_MINUTE)
       }
       Detection(
         kind = Kind.EVENT,
@@ -664,8 +678,22 @@ object RuleEngine {
     return Wording.meetAtVenue(lang, venue)
   }
 
+  /** Overlapping date/time spans ("vom 2. bis 4. Dezember" and "4. Dezember") as one range each. */
+  private fun mergeSpans(spans: List<IntRange>): List<IntRange> {
+    val out = mutableListOf<IntRange>()
+    spans.sortedBy { it.first }.forEach { r ->
+      val last = out.lastOrNull()
+      if (last != null && r.first <= last.last + 1) out[out.size - 1] = last.first..maxOf(last.last, r.last) else out += r
+    }
+    return out
+  }
+
   private fun buildTitle(text: String, w: ParsedWhen, kind: Kind, sender: String): String {
     if (kind == Kind.EVENT) {
+      BIRTHDAY_EN.find(text)?.takeIf { BIRTHDAY_REGEX.find(text) == null }?.let { m ->
+        val person = m.groupValues[1].ifBlank { m.groupValues[2] }
+        if (person.isNotBlank()) return "$person's birthday"
+      }
       val bm = BIRTHDAY_REGEX.find(text)
       if (bm != null) {
         val person = bm.groupValues[1].ifBlank { bm.groupValues[2] }.ifBlank { bm.groupValues[3] }.trim()
@@ -688,10 +716,11 @@ object RuleEngine {
     // Remove date/time expressions found by the parser if they are inside this sentence.
     val sentenceStart = text.indexOf(t)
     if (sentenceStart >= 0) {
-      w.spans.sortedByDescending { it.first }.forEach { r ->
-        val a = r.first - sentenceStart
-        val b = r.last - sentenceStart
-        if (a >= 0 && b < t.length) {
+      mergeSpans(w.spans).sortedByDescending { it.first }.forEach { r ->
+        // A span may run over the sentence end ("vom 2. bis 4. Dezember" is split after "4."): the part inside goes.
+        val a = maxOf(r.first - sentenceStart, 0)
+        val b = minOf(r.last - sentenceStart, t.length - 1)
+        if (a <= b) {
           // Also drop the preposition in front of the date/time ("um 15 Uhr", "at 3pm", "am 12.11.").
           val prep = DANGLING_PREP.find(t.substring(0, a))
           t = t.removeRange(prep?.range?.first ?: a, b + 1)
@@ -701,6 +730,7 @@ object RuleEngine {
     t = LEADING_FILLER.replace(t, "")
     if (kind == Kind.EVENT) {
       t = INVITE_FILLER.replace(t, "")
+      t = CONFIRM_FILLER.replace(t, "")
       t = rx("""^\s*(?:bei|zu)\s+(?:uns|mir)\s+(?:zum|zur|ins|in\s+die|fürs|für\s+das)\s+""").replace(t, "")
       t = rx("""^\s*(?:zum|zur)\s+""").replace(t, "")
     }
@@ -708,6 +738,11 @@ object RuleEngine {
     t = t.replace(rx("""\b(um|at|à|a las|alle|às|o|am|on|le|el|il|bis|by|until)\s*([,.!?]|$)"""), "$2")
       .replace(Regex("""\s{2,}"""), " ")
       .replace(Regex("""\s+([,.!?;:])"""), "$1")
+      // Leftovers of cut-out dates/durations: ",,", "( )", a lone ")" of "(2 Std.)", "… is confirmed for".
+      .replace(Regex(""",(\s*,)+"""), ",")
+      .replace(Regex("""\(\s*\)"""), "")
+      .let { if (it.count { c -> c == ')' } > it.count { c -> c == '(' }) it.replace(Regex("""\s*\)"""), "") else it }
+      .replace(rx("""\s+(?:is\s+|are\s+|ist\s+|wurde\s+)?(?:confirmed|bestätigt)(?:\s+for)?\s*$"""), "")
       .trim(' ', ',', '.', '!', '?', ':', ';', '-')
     t = cleanCrypticTitle(t)
     if (t.isBlank()) t = cleanCrypticTitle(text.take(60))
