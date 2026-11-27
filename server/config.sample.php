@@ -1,4 +1,6 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Julian Digital Products
 // Copy this file to config.php and adjust it. config.php is never served (see .htaccess).
 return [
     // Database: MySQL or MariaDB (recommended). SQLite works for quick tests – keep the file OUTSIDE the web root,

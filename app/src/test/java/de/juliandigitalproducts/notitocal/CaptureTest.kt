@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Julian Digital Products
+
 package de.juliandigitalproducts.notitocal
 
 import de.juliandigitalproducts.notitocal.analysis.LlmJson

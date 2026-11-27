@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Julian Digital Products -->
 <!-- C9: Cleartext stays allowed at platform level because local servers (Ollama, LM Studio, a NAS) are reached by IP,
      which network-security-config cannot express as a range. Http.kt only sends plain http:// to LAN addresses
      (private IPv4/IPv6 ranges, localhost, .local/.lan/.home.arpa names, Tailscale); everything else must use HTTPS.

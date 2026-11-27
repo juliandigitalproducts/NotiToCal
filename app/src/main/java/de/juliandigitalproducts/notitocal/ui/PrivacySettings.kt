@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Julian Digital Products
+
 package de.juliandigitalproducts.notitocal.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -136,6 +139,8 @@ fun PrivacyScreen(
     }
 
     SettingGroupCard(title = stringResource(R.string.oss_title)) {
+      // NotiToCal's own license (GPL-3.0-or-later with section 7 terms, see LICENSE and LICENSE-EXCEPTIONS.md).
+      Hint(stringResource(R.string.license_app))
       // Libraries in the APK: generated at build time (AboutLibraries, plus the components bundled inside ML Kit).
       TextButton(onClick = onOpenLicenses, modifier = Modifier.padding(horizontal = 12.dp)) { Text(stringResource(R.string.licenses_open)) }
       TextButton(onClick = onOpenGoogleNotices, modifier = Modifier.padding(horizontal = 12.dp)) { Text(stringResource(R.string.licenses_google)) }

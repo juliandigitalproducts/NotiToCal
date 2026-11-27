@@ -1,2 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Julian Digital Products
 # Tests are run from the command line only, never served.
 Require all denied

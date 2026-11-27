@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Julian Digital Products
 """Generates the Android icon resources from tools/icon/app-icon.svg (1024x1024 artwork).
 
   python3 tools/icon/make_icons.py          (needs: pip install shapely)

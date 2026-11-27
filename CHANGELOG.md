@@ -1,3 +1,13 @@
+## 1.0.8
+
+### Deutsch
+- Lizenzwechsel: Ab dieser Version steht NotiToCal unter GPL-3.0-or-later (der Server unter `server/` unter AGPL-3.0-or-later), mit Zusatzbedingungen nach § 7 in `LICENSE-EXCEPTIONS.md`. Versionen bis einschließlich 1.0.7 bleiben MIT.
+- Lizenzhinweis in der App (Datenschutz-Einstellungen → Open-Source-Lizenzen) und in allen 7 Sprachen angepasst.
+
+### English
+- License change: starting with this version NotiToCal is licensed under GPL-3.0-or-later (the server in `server/` under AGPL-3.0-or-later), with additional terms under section 7 in `LICENSE-EXCEPTIONS.md`. Versions up to and including 1.0.7 remain MIT.
+- License notice in the app (privacy settings → open source licenses) updated in all 7 languages.
+
 ## 1.0.7
 
 ### Deutsch

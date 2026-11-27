@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Julian Digital Products
 -keepclassmembers class * { @kotlinx.serialization.* <fields>; }
 -keepclasseswithmembers class * { kotlinx.serialization.KSerializer serializer(...); }
 -keep @kotlinx.serialization.Serializable class de.juliandigitalproducts.notitocal.** { *; }

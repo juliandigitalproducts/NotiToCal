@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Julian Digital Products
+
 S = {
 "share_label": "Aggiungi con NotiToCal",
 "about": "Informazioni",
-"about_body": "Trasforma notifiche, screenshot e trascrizioni Anti-Vocale dei messaggi vocali in appuntamenti e attività. Open source (MIT).",
+"about_body": "Trasforma notifiche, screenshot e trascrizioni Anti-Vocale dei messaggi vocali in appuntamenti e attività. Software libero sotto GPL-3.0-or-later.",
+"license_app": "NotiToCal © 2026 Julian Digital Products. Software libero sotto GNU GPL v3.0 o successiva, con condizioni aggiuntive ai sensi della sezione 7 (i nomi «NotiToCal» e «Julian Digital Products» e i loghi non sono concessi in licenza). Le versioni fino alla 1.0.7 sono state pubblicate sotto MIT. Questo programma è fornito SENZA ALCUNA GARANZIA. Vedi la licenza per i dettagli. Il server self-hosted è sotto GNU AGPL v3.0 o successiva.",
 "action_add": "Aggiungi",
 "action_dismiss": "Scarta",
 "action_undo_hint": "Dettagli",

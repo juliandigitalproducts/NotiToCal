@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Julian Digital Products
 """Generates the Telegram bridge scripts shipped in app/src/main/assets from one template.
 
   python3 tools/bridge/generate.py      (run from the repository root)

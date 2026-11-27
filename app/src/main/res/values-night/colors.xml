@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Julian Digital Products -->
 <resources>
   <color name="background">#FF121318</color>
   <color name="widget_surface">#FF1E242B</color>

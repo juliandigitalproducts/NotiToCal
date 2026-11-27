@@ -1,4 +1,6 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Julian Digital Products
 // End-to-end test of the server: api.php in PHP's built-in web server with a temporary SQLite database.
 // Stores entries like the app does (target "Own server"), updates one by uid and reads the ICS calendar feed.
 // Run: php server/tests/e2e.php   (needs php-cli with pdo_sqlite; nothing is kept afterwards)

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Julian Digital Products
 # Never serve configuration, database files or the schema.
 <FilesMatch "^(config\.php|config\.sample\.php|schema\.sql|.*\.sqlite)$">
   Require all denied

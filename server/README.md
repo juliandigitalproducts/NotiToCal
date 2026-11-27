@@ -51,3 +51,9 @@ appointment was moved or got its end time, it sends the entry again with `"actio
 (webhooks and automation broadcasts get the same fields). `source.sender` and `source.text` are only sent when the app setting
 "Send message text to webhook and server" is on, and the server keeps them only with `'store_message_text' => true` in
 `config.php` (off by default).
+
+## License
+The server is licensed under the GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`); full text in
+[LICENSE](LICENSE). Versions up to and including v1.0.7 were released under MIT. If you run a modified version for
+other users over a network, AGPL section 13 requires you to offer them its source code. Additional terms (names, logos,
+graphics) are in [../LICENSE-EXCEPTIONS.md](../LICENSE-EXCEPTIONS.md). The Android app itself is `GPL-3.0-or-later`.

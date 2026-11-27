@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Julian Digital Products
 """Generates app/src/main/res/values*/strings.xml from the per-language dictionaries in this folder.
 
 Usage: python3 tools/i18n/generate.py   (run from the repository root)

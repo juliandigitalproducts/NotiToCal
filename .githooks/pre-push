@@ -5,12 +5,20 @@
 # git ruft den Hook mit <remote-name> <remote-url> auf und liefert je Ref auf stdin:
 #   <lokaler ref> <lokale sha> <entfernter ref> <entfernte sha>
 # Geprüft wird je Ref nur, was neu ist: <entfernte sha>..<lokale sha>, bei einem neuen Ref alle Commits, die noch auf
-# keinem Ref des Remotes liegen (<lokale sha> --not --remotes=<remote>). Löschungen werden übersprungen.
+# keinem Ref des Push-Ziels liegen. Löschungen werden übersprungen.
+#   - Ziel ist ein konfigurierter Remote-Name (git push origin …): <lokale sha> --not --remotes=<remote>.
+#   - Ziel ist eine URL (git push https://github.com/… …, so pusht publish.sh): --remotes= ist ein Namensmuster für
+#     Remote-Tracking-Branches (refs/remotes/<muster>), keine URL – es würde nichts ausschließen, und schon
+#     veröffentlichte Alt-Commits blockierten erneut. Darum holt der Hook die Refs des Ziels nur lesend (git fetch) in
+#     einen temporären Namensraum refs/prepush-exclude/<pid>/ und prüft <lokale sha> --not --glob=<namensraum>/*.
+#     Die temporären Refs werden am Ende immer gelöscht (trap). Scheitert der Fetch, wird streng geprüft (die ganze
+#     Historie bis zur Wurzel, nichts ausgenommen).
 # Scanner: .githooks/secrets-scan.sh des Repos, sonst ~/Documents/AI/EINRICHTUNGSASSISTENT/github-publish/secrets-scan.sh.
 # Fund oder Werkzeugfehler → Push blockiert (Exit 1).
 # Notausgang (nur im echten Notfall, z. B. Werkzeug kaputt, Wert nachweislich harmlos): SECRETS_SCAN_UEBERSPRINGEN=1.
 set -euo pipefail
 REMOTE=${1:-}
+REMOTE_URL=${2:-$REMOTE}
 
 if [ "${SECRETS_SCAN_UEBERSPRINGEN:-}" = 1 ]; then
   {
@@ -34,6 +42,29 @@ if [ -z "$SCAN" ]; then
   exit 1
 fi
 
+# Ausschluss für neue Refs, einmal je Push ermittelt (ausschluss_ermitteln setzt AUSSCHLUSS, leer = nichts ausnehmen).
+AUSSCHLUSS=""
+AUSSCHLUSS_DA=0
+EXCL_NS="refs/prepush-exclude/$$"
+excl_aufraeumen() {
+  git for-each-ref --format='delete %(refname)' "$EXCL_NS/" 2>/dev/null | git update-ref --stdin 2>/dev/null || true
+}
+trap excl_aufraeumen EXIT
+trap 'exit 1' INT TERM HUP
+ausschluss_ermitteln() {
+  [ "$AUSSCHLUSS_DA" = 0 ] || return 0
+  AUSSCHLUSS_DA=1
+  if [ -n "$REMOTE" ] && git config --get "remote.$REMOTE.url" > /dev/null 2>&1; then
+    AUSSCHLUSS="--not --remotes=$REMOTE"
+  elif [ -n "$REMOTE_URL" ] && git -c gc.auto=0 fetch --quiet --no-tags --no-write-fetch-head --no-recurse-submodules \
+         "$REMOTE_URL" "+refs/heads/*:$EXCL_NS/heads/*" "+refs/tags/*:$EXCL_NS/tags/*" < /dev/null >&2; then
+    AUSSCHLUSS="--not --glob=$EXCL_NS/*"
+  else
+    echo "pre-push: Refs von $REMOTE_URL nicht lesbar – prüfe streng (ganze Historie)." >&2
+    AUSSCHLUSS=""
+  fi
+}
+
 null_sha() { case "$1" in *[!0]*) return 1 ;; *) return 0 ;; esac; }
 fund=0
 fehler=0
@@ -46,7 +77,8 @@ while read -r lref lsha rref rsha; do
   if ! null_sha "$rsha" && git cat-file -e "$rsha^{commit}" 2>/dev/null; then
     bereich="$rsha..$lsha"
   else
-    bereich="$lsha --not --remotes=$REMOTE"
+    ausschluss_ermitteln
+    bereich="$lsha${AUSSCHLUSS:+ $AUSSCHLUSS}"
   fi
   echo "pre-push: prüfe $lref → $rref" >&2
   rc=0

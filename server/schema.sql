@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+-- Copyright (C) 2026 Julian Digital Products
 -- NotiToCal server schema for MySQL 8+ / MariaDB 10.5+.
 -- api.php also creates the table automatically on first use.
 CREATE TABLE IF NOT EXISTS notitocal_items (

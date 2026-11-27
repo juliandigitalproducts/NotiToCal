@@ -9,7 +9,9 @@
 #
 # Canary (vor JEDEM Scan, in allen Modi): zur Laufzeit erzeugte Fake-Werte in einem Temp-Ordner – Telegram-Bot-URL mit
 #   34 und mit 35 Zeichen nach ':', Private-Key-Header, password=<16 Zufallszeichen> in einer .properties (alle mit
-#   gitleaks und derselben Config) sowie ein GitHub-Token-Muster (trufflehog). Wird einer nicht gefunden → Exit 1.
+#   gitleaks und derselben Config) sowie ein GitHub-Token-Muster (trufflehog). Wird einer nicht gefunden: Selbsttest
+#   bis zu 2-mal wiederholen, danach Exit 1. Im Fehlerfall nur Metadaten (Exit, Ausgabe leer ja/nein, DetectorName),
+#   nie Werte. Die eigentliche Secret-Prüfung wird dadurch nicht gelockert.
 # Config: SECRETS_SCAN_CONFIG (Datei) > .gitleaks.toml des Ordners/Repos (enthält die Basis, gitleaks-config-sync.sh)
 #   > gitleaks-basis.toml neben diesem Skript. Fehlt alles → Exit 1.
 # Ausnahmen: .gitleaksignore des Ordners/Repos + SECRETS_SCAN_IGNORE (Datei). Fingerprints wie bei gitleaks
@@ -136,18 +138,16 @@ th_lauf() {
 zufall() { python3 -I -c 'import secrets,sys; print("".join(secrets.choice(sys.argv[1]) for _ in range(int(sys.argv[2]))))' "$1" "$2"; }
 
 # ---- Canary ---------------------------------------------------------------------------------------------------------
-canary() {
-  local c="$W/canary" zeichen=ABCDEFGHIJKLMNOPQRSTUVWYZabcdefghijklmnopqrstuvwyz0123456789 ziffern
-  mkdir "$c"
-  ziffern="$(zufall 123456789 1)$(zufall 0123456789 8)"
-  printf 'https://api.telegram.org/bot%s:%s/getMe\n' "$ziffern" "$(zufall "$zeichen" 34)" > "$c/telegram34.txt"
-  printf 'https://api.telegram.org/bot%s:%s/getMe\n' "$ziffern" "$(zufall "$zeichen" 35)" > "$c/telegram35.txt"
-  printf '%s%s %s %s%s\n' '-----' BEGIN RSA 'PRIVATE KEY' '-----' > "$c/schluessel.txt"
-  printf 'db.password=%s\n' "$(zufall "$zeichen" 16)" > "$c/zugang.properties"
-  printf 'token = "%s_%s"\n' ghp "$(zufall "$zeichen" 36)" > "$c/github.txt"
-  gl_lauf "$W/canary-gl.json" "$c" "$W/leer.ignore" dir . || true
-  [ -z "$TH" ] || th_lauf "$W/canary-th.jsonl" "$c" filesystem .
-  local fehlt
+# Nur für den Selbsttest: Exit merken, nicht abbrechen (th_lauf für die eigentliche Prüfung bleibt strikt).
+canary_th_lauf() {
+  local out=$1 cwd=$2
+  shift 2
+  TH_RC=0
+  ( cd "$cwd" && "$TH" "$@" --no-verification --no-update --json --no-ignore-tag --fail-on-scan-errors --no-color ) \
+    > "$out" 2> "$W/th.err" < /dev/null || TH_RC=$?
+}
+
+canary_fehlt() {
   fehlt=$(python3 -I - "$W/canary-gl.json" "$W/canary-th.jsonl" "${TH:+ja}" <<'EOF'
 import json, os, sys
 gl = json.load(open(sys.argv[1])) if os.path.exists(sys.argv[1]) and os.path.getsize(sys.argv[1]) else []
@@ -167,9 +167,67 @@ if sys.argv[3]:
 print(" ".join(fehlt))
 EOF
 )
-  rm -rf "$c"
-  [ -z "$fehlt" ] || gp_die "Canary nicht erkannt – Regeln greifen nicht, Abbruch (fehlt: $fehlt; Config $CFG)."
-  gp_log "Canary ok (Config $(basename "$CFG")${TH:+, gitleaks + trufflehog})."
+}
+
+# Nur Metadaten, nie Werte (kein Raw/Redacted/Dateiinhalt).
+canary_meta() {
+  python3 -I - "$W/canary-th.jsonl" "${TH_RC-}" <<'EOF'
+import json, os, sys
+out, rc = sys.argv[1], sys.argv[2]
+leer = (not os.path.exists(out)) or os.path.getsize(out) == 0
+namen, gesehen = [], set()
+if not leer:
+    for l in open(out, encoding="utf-8", errors="replace"):
+        try:
+            n = json.loads(l).get("DetectorName")
+        except Exception:
+            continue
+        if n and n not in gesehen:
+            gesehen.add(n)
+            namen.append(str(n))
+print("Canary-Metadaten: trufflehog-Exit=%s Ausgabe-leer=%s DetectorName=%s" % (
+    rc if rc != "" else "?",
+    "ja" if leer else "nein",
+    ",".join(namen) if namen else "(keine)"))
+EOF
+}
+
+canary() {
+  local c="$W/canary" zeichen=ABCDEFGHIJKLMNOPQRSTUVWYZabcdefghijklmnopqrstuvwyz0123456789 ziffern
+  local versuch=1 fehlt
+  TH_RC=0
+  while [ "$versuch" -le 3 ]; do
+    rm -rf "$c"
+    mkdir "$c"
+    ziffern="$(zufall 123456789 1)$(zufall 0123456789 8)"
+    printf 'https://api.telegram.org/bot%s:%s/getMe\n' "$ziffern" "$(zufall "$zeichen" 34)" > "$c/telegram34.txt"
+    printf 'https://api.telegram.org/bot%s:%s/getMe\n' "$ziffern" "$(zufall "$zeichen" 35)" > "$c/telegram35.txt"
+    printf '%s%s %s %s%s\n' '-----' BEGIN RSA 'PRIVATE KEY' '-----' > "$c/schluessel.txt"
+    printf 'db.password=%s\n' "$(zufall "$zeichen" 16)" > "$c/zugang.properties"
+    printf 'token = "%s_%s"\n' ghp "$(zufall "$zeichen" 36)" > "$c/github.txt"
+    gl_lauf "$W/canary-gl.json" "$c" "$W/leer.ignore" dir . || true
+    : > "$W/canary-th.jsonl"
+    : > "$W/th.err"
+    TH_RC=0
+    [ -z "$TH" ] || canary_th_lauf "$W/canary-th.jsonl" "$c" filesystem .
+    canary_fehlt
+    rm -rf "$c"
+    if [ -z "$fehlt" ]; then
+      if [ "$versuch" -gt 1 ]; then
+        gp_log "Canary ok im Versuch $versuch/3 (Config $(basename "$CFG")${TH:+, gitleaks + trufflehog})."
+      else
+        gp_log "Canary ok (Config $(basename "$CFG")${TH:+, gitleaks + trufflehog})."
+      fi
+      return 0
+    fi
+    if [ "$versuch" -lt 3 ]; then
+      gp_log "Canary nicht erkannt (Versuch $versuch/3, fehlt: $fehlt) – wiederhole Selbsttest."
+      versuch=$((versuch + 1))
+      continue
+    fi
+    [ -z "$TH" ] || canary_meta >&2
+    gp_die "Canary nicht erkannt – Regeln greifen nicht, Abbruch (fehlt: $fehlt; Config $CFG)."
+  done
 }
 
 # ---- Auswertung -----------------------------------------------------------------------------------------------------

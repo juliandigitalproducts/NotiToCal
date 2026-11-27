@@ -7,7 +7,7 @@ erkennt darin Termine und To-dos – mit Offline-Regeln oder einer KI deiner Wah
 deine Aufgaben-App ein: automatisch oder nach einem Tipp zur Bestätigung. Screenshots und die Transkripte, die Anti-Vocale
 aus Sprachnachrichten macht, funktionieren auch.
 
-Material You · 7 Sprachen (DE, EN, FR, ES, IT, PT, PL) · Datenschutz zuerst · Open Source (MIT)
+Material You · 7 Sprachen (DE, EN, FR, ES, IT, PT, PL) · Datenschutz zuerst · Freie Software (GPL-3.0-or-later)
 
 <p>
 <img src="docs/screenshots/01-welcome.png" width="160" alt="Welcome" />
@@ -98,9 +98,29 @@ to Google according to Google (no pictures, no texts). The optional address look
 
 ## Lizenz / License
 
-[MIT](LICENSE) © 2026 juliandigitalproducts. On-device models are downloaded from Hugging Face under their own licences
-(Qwen: Apache 2.0, Gemma: Gemma Terms of Use). ML Kit text recognition and MediaPipe are © Google. The app lists all
-bundled libraries with their full license texts under *Settings › Privacy and about › Licenses of all components*.
+Versionen bis einschließlich v1.0.7: MIT. Ab der nächsten Version: GPL-3.0-or-later.
+
+- **App:** [GNU GPL v3.0 or later](LICENSE) (`GPL-3.0-or-later`) © 2026 Julian Digital Products.
+- **Server (`server/`):** [GNU AGPL v3.0 or later](server/LICENSE) (`AGPL-3.0-or-later`).
+- **Zusätze nach § 7 / Additional terms (section 7):** [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md) – Zusatzerlaubnis
+  für die Kombination mit Google ML Kit, Google Play services, ODML image und MediaPipe Tasks GenAI sowie die Markenklausel.
+- **Beiträge / Contributions:** nur mit CLA, siehe [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Versions up to and including v1.0.7: MIT. From the next version on: GPL-3.0-or-later (server: AGPL-3.0-or-later).
+On-device models are downloaded from Hugging Face under their own licences (Qwen: Apache 2.0, Gemma: Gemma Terms of
+Use). ML Kit text recognition and MediaPipe are © Google. The app lists all bundled libraries with their full license
+texts under *Settings › Privacy and about › Licenses of all components*.
+
+## Marken / Trademarks
+
+Die Lizenz gewährt keine Rechte an den Namen „NotiToCal“ und „Julian Digital Products“ oder an Logos, Icons und anderen
+Markenmerkmalen. Veränderte Versionen müssen unter anderem Namen und mit anderen Icons verbreitet werden, als verändert
+gekennzeichnet sein und dürfen nicht den Eindruck erwecken, vom ursprünglichen Autor zu stammen oder von ihm unterstützt
+zu werden. Bilder und Grafiken in diesem Repository sind, soweit nicht anders angegeben, nicht zur Nutzung außerhalb
+dieses Programms lizenziert. Verbindlich ist der Wortlaut in [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md).
+
+The licence grants no rights to the names "NotiToCal" and "Julian Digital Products" or to the logos, icons and other
+brand features; modified versions need a different name and icons. Binding wording: [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md).
 
 All product names and trademarks mentioned (WhatsApp, Telegram, Signal, Google, OpenAI, Anthropic and others) belong to
 their owners; NotiToCal is not affiliated with or endorsed by them.
